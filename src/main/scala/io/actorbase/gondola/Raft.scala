@@ -1,7 +1,7 @@
 package io.actorbase.gondola
 
 import akka.NotUsed
-import akka.actor.typed.{ActorSystem, Behavior, Terminated}
+import akka.actor.typed.{ActorSystem, Behavior, SpawnProtocol, Terminated}
 import akka.actor.typed.scaladsl.Behaviors
 
 object Raft {
@@ -27,12 +27,10 @@ object Raft {
       case (ctx, AppendEntries(term)) => Behaviors.same
     }
 
-  val main: Behavior[NotUsed] =
+  val main: Behavior[SpawnProtocol] =
     Behaviors.setup { ctx =>
       val followerActor = ctx.spawn(follower, "follower-1")
-      Behaviors.receiveSignal {
-        case (_, Terminated(_)) => Behaviors.stopped
-      }
+      SpawnProtocol.behavior
     }
 
   val system = ActorSystem(main, "Raft")
