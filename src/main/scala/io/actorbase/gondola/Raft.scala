@@ -17,19 +17,19 @@ object Raft {
   final case class Voted(term: Int) extends RaftProtocol
   final case class AppendEntries(term: Int) extends RaftProtocol
   final case class EntriesAppended(term: Int) extends RaftProtocol
-  private final case object CheckHeartbeat extends RaftProtocol
+  private[gondola] final case object CheckHeartbeat extends RaftProtocol
 
-  private def candidate: Behavior[RaftProtocol] =
+  def candidate: Behavior[RaftProtocol] =
     Behaviors.receivePartial {
       case (ctx, Voted(term)) => Behaviors.same
     }
 
-  private def leader: Behavior[RaftProtocol] =
+  def leader: Behavior[RaftProtocol] =
     Behaviors.receivePartial {
       case (ctx, EntriesAppended(term)) => Behaviors.same
     }
 
-  private def follower(heartbeat: Long, lastHeartbeat: Long): Behavior[RaftProtocol] =
+  def follower(heartbeat: Long, lastHeartbeat: Long): Behavior[RaftProtocol] =
     Behaviors.withTimers { timers =>
       timers.startPeriodicTimer(TimerKey, CheckHeartbeat, FiniteDuration.apply(heartbeat, TimeUnit.MILLISECONDS))
       Behaviors.receivePartial {
