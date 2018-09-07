@@ -3,7 +3,7 @@ package io.actorbase.gondola
 import java.util.concurrent.TimeUnit
 
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorSystem, Behavior, SpawnProtocol}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, SpawnProtocol}
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
@@ -15,7 +15,8 @@ object Raft {
   sealed trait RaftProtocol
   final case class RequestVote(term: Int) extends RaftProtocol
   final case class Voted(term: Int) extends RaftProtocol
-  final case class AppendEntries(term: Int) extends RaftProtocol
+  final case class AppendEntries(term: Int, replyTo: ActorRef[RaftProtocol]) extends RaftProtocol
+  final case class HeartbeatResponse(term: Int) extends RaftProtocol
   final case class EntriesAppended(term: Int) extends RaftProtocol
   private[gondola] final case object CheckHeartbeat extends RaftProtocol
 
@@ -29,12 +30,19 @@ object Raft {
       case (ctx, EntriesAppended(term)) => Behaviors.same
     }
 
-  def follower(heartbeat: Long, lastHeartbeat: Long): Behavior[RaftProtocol] =
+  def follower(heartbeat: Long, lastHeartbeat: Long, currentTerm: Int): Behavior[RaftProtocol] =
     Behaviors.withTimers { timers =>
       timers.startPeriodicTimer(TimerKey, CheckHeartbeat, FiniteDuration.apply(heartbeat, TimeUnit.MILLISECONDS))
       Behaviors.receivePartial {
         case (ctx, RequestVote(term)) => Behaviors.same
-        case (ctx, AppendEntries(term)) => Behaviors.same
+        case (ctx, AppendEntries(term, leader)) =>
+          if (term == currentTerm) {
+            leader ! HeartbeatResponse(currentTerm)
+            Behaviors.same
+          } else {
+            // TODO
+            Behaviors.same
+          }
         case (ctx, CheckHeartbeat) =>
           if (now() - lastHeartbeat > heartbeat) {
             candidate
@@ -45,7 +53,7 @@ object Raft {
 
   val main: Behavior[SpawnProtocol] =
     Behaviors.setup { ctx =>
-      val followerActor = ctx.spawn(follower(randomHeartbeat(), now()), "follower-1")
+      val followerActor = ctx.spawn(follower(randomHeartbeat(), now(), 0), "follower-1")
       SpawnProtocol.behavior
     }
 
