@@ -1,6 +1,6 @@
 package io.actorbase.gondola
 
-import akka.actor.testkit.typed.scaladsl.{ActorTestKit, BehaviorTestKit, ManualTime, TestInbox, TestProbe}
+import akka.actor.testkit.typed.scaladsl.{ActorTestKit, BehaviorTestKit, ManualTime, TestProbe}
 import com.typesafe.config.Config
 import io.actorbase.gondola.Raft._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
@@ -25,16 +25,13 @@ class RaftSpec extends WordSpec with ActorTestKit with Matchers with BeforeAndAf
       // inbox.expectMessage(CheckHeartbeat)
     }
   }
-
+*/
   "A follower" must {
     "respond to leader heartbeat" in {
-      val probe = TestProbe[HeartbeatResponse.type]()
-      // val testKit = BehaviorTestKit(follower(200L, now(), 0))
-      val raftActor = spawn(follower(200L, now(), 0))
-      testKit.run(AppendEntries(0, inbox.ref))
-      manualTime.timePasses(10.millis)
-      inbox.expectMessage(HeartbeatResponse(0))
+      val probe = TestProbe[RaftProtocol]()
+      val followerActor = spawn(follower(200L, now(), 0))
+      followerActor ! AppendEntries(0, probe.ref)
+      probe.expectMessage(HeartbeatResponse(0))
     }
   }
-  */
 }
