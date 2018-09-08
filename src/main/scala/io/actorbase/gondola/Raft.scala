@@ -20,17 +20,21 @@ object Raft {
   final case class EntriesAppended(term: Int) extends RaftProtocol
   private[gondola] final case object CheckHeartbeat extends RaftProtocol
 
-  def candidate: Behavior[RaftProtocol] =
+  def candidate(nodes: List[ActorRef[RaftProtocol]]): Behavior[RaftProtocol] =
+    // TODO Here we have to use the cameo pattern (per session child actor in Akka typed)
     Behaviors.receivePartial {
       case (ctx, Voted(term)) => Behaviors.same
     }
 
-  def leader: Behavior[RaftProtocol] =
+  def leader(nodes: List[ActorRef[RaftProtocol]]): Behavior[RaftProtocol] =
     Behaviors.receivePartial {
       case (ctx, EntriesAppended(term)) => Behaviors.same
     }
 
-  def follower(heartbeat: Long, lastHeartbeat: Long, currentTerm: Int): Behavior[RaftProtocol] =
+  def follower(nodes: List[ActorRef[RaftProtocol]],
+               heartbeat: Long,
+               lastHeartbeat: Long,
+               currentTerm: Int): Behavior[RaftProtocol] =
     Behaviors.withTimers { timers =>
       timers.startPeriodicTimer(TimerKey, CheckHeartbeat, FiniteDuration.apply(heartbeat, TimeUnit.MILLISECONDS))
       Behaviors.receivePartial {
@@ -45,15 +49,16 @@ object Raft {
           }
         case (ctx, CheckHeartbeat) =>
           if (now() - lastHeartbeat > heartbeat) {
-            candidate
+            candidate(nodes)
           }
           Behaviors.same
       }
     }
 
   val main: Behavior[SpawnProtocol] =
+    // FIXME Nil is not a correct initial value
     Behaviors.setup { ctx =>
-      val followerActor = ctx.spawn(follower(randomHeartbeat(), now(), 0), "follower-1")
+      val followerActor = ctx.spawn(follower(Nil, randomHeartbeat(), now(), 0), "follower-1")
       SpawnProtocol.behavior
     }
 

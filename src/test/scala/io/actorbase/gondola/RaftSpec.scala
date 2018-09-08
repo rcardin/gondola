@@ -29,7 +29,7 @@ class RaftSpec extends WordSpec with ActorTestKit with Matchers with BeforeAndAf
   "A follower" must {
     "respond to leader heartbeat" in {
       val probe = TestProbe[RaftProtocol]()
-      val followerActor = spawn(follower(200L, now(), 0))
+      val followerActor = spawn(follower(Nil, 200L, now(), 0))
       followerActor ! AppendEntries(0, probe.ref)
       probe.expectMessage(HeartbeatResponse(0))
     }
